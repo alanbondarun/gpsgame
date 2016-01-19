@@ -4,11 +4,15 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -25,8 +29,19 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -91,8 +106,9 @@ public class MainActivity extends AppCompatActivity
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                requestingLocationUpdates = true;
-                startLocationUpdates();
+                fetchData();
+                //requestingLocationUpdates = true;
+                //startLocationUpdates();
             }
         });
         btnStop.setOnClickListener(new View.OnClickListener() {
@@ -131,6 +147,94 @@ public class MainActivity extends AppCompatActivity
             startLocationUpdates();
         }
     }
+
+    private void fetchData()
+    {
+        //check network connection
+        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            new DownloadWebpageTask().execute("http://143.248.233.58:8125/request");
+        }
+        else
+        {
+            txtNearestSpot.setText("no network connection available.");
+        }
+    }
+
+    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
+    {
+        @Override
+        protected String doInBackground(String... urls) {
+            try {
+                return downloadUrl(urls[0]);
+            } catch (IOException e) {
+                return "Unable to retrieve web page. URL my be invalid.";
+            }
+        }
+        @Override
+        protected void onPostExecute(String result)
+        {
+            String output = "nothing";
+            try {
+                JSONObject locationListObject = new JSONObject(result);
+                JSONArray locationArray = locationListObject.getJSONArray("LocationList");
+
+
+                for (int i = 0; i< locationArray.length(); i++) {
+                    JSONObject jsonObject = locationArray.getJSONObject(i);
+                    output = jsonObject.toString();
+                    Log.d(TAG, output);
+                }
+            }
+            catch (org.json.JSONException e)
+            {
+                Log.d(TAG, "JSONEXCEPTION BRO.......try harder man");
+            }
+            txtNearestSpot.setText(output);
+        }
+
+        private String downloadUrl(String myurl) throws IOException
+        {
+            InputStream is = null;
+            int len = 2000;
+            try
+            {
+                URL url = new URL(myurl);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(15000);
+                conn.setRequestMethod("GET");
+                conn.setDoInput(true);
+                conn.connect();
+                int response = conn.getResponseCode();
+                Log.d("debugmessage", "The response is: " + response);
+                is = conn.getInputStream();
+                String contentAsString = readIt(is, len);
+                return contentAsString;
+            }
+            finally
+            {
+                if (is != null)
+                {
+                    is.close();
+                }
+            }
+        }
+
+        public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
+        {
+            Reader reader = null;
+            reader = new InputStreamReader(stream, "UTF-8");
+            char[] buffer = new char[len];
+            reader.read(buffer);
+            return new String(buffer);
+        }
+    }
+
+
+
 
     @Override
     protected void onPause()
