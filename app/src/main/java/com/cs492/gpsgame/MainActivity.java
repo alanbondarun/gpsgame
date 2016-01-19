@@ -1,6 +1,7 @@
 package com.cs492.gpsgame;
 
 import android.Manifest;
+import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -24,16 +25,29 @@ import com.google.android.gms.location.FusedLocationProviderApi;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMapOptions;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity
         implements GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationListener,
+        OnMapReadyCallback {
     public static final String TAG = "MainActivity";
 
     public class Position {
@@ -60,6 +74,16 @@ public class MainActivity extends AppCompatActivity
     private boolean requestingLocationUpdates = false;
 
     private final static String KEY_REQUESTING_LOCATION_UPDATES = "KEY_REQUESTING_LOCATION_UPDATES";
+
+    private MapFragment mapFragment;
+
+    private GoogleMap googleMap;
+
+    // a collection of pairs (the name of a marker for a spot, the marker object)
+    private HashMap<String, Marker> markerHashMap;
+
+    // marker of the user
+    private Marker userMarker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,6 +138,13 @@ public class MainActivity extends AppCompatActivity
 
         updateValuesFromBundle(savedInstanceState);
         createLocationRequest();
+
+        mapFragment =
+                (MapFragment) getFragmentManager().findFragmentById(R.id.map);
+
+        mapFragment.getMapAsync(this);
+
+        markerHashMap = new HashMap<>();
     }
 
     @Override
@@ -168,6 +199,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onLocationChanged(Location location)
     {
+        Log.d(TAG, "onLocationChanged: (" + location.getLatitude() + "," + location.getLongitude() + ")");
         updateUI(location);
     }
 
@@ -227,6 +259,40 @@ public class MainActivity extends AppCompatActivity
         }
 
         txtNearestSpot.setText(minSpotName);
+
+        // update the position of google map to the user's current position
+        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+
+        // hide all markers except the marker closest to the user
+        for (Marker m: markerHashMap.values())
+        {
+            m.setVisible(false);
+        }
+        markerHashMap.get(minSpotName).setVisible(true);
+
+        // update the user's marker
+        userMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        this.googleMap = googleMap;
+
+        this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(36.369561, 127.362435), 15));
+
+        // create markers for spots
+        for (Position pos: positionList)
+        {
+            Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(pos.latitude, pos.longitude)).title(pos.name));
+            marker.setVisible(false);
+            markerHashMap.put(pos.name, marker);
+        }
+
+        // create a marker for the user
+        userMarker = googleMap.addMarker(new MarkerOptions()
+                .position(new LatLng(36.369561, 127.362435))
+                .title("You")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
     }
 
     private void updateValuesFromBundle(Bundle savedInstanceState)
