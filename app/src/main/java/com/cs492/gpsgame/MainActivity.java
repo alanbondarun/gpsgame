@@ -1,6 +1,7 @@
 package com.cs492.gpsgame;
 
 import android.Manifest;
+import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -28,6 +29,17 @@ import com.google.android.gms.location.FusedLocationProviderApi;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMapOptions;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -43,12 +55,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity
         implements GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationListener,
+        OnMapReadyCallback {
     public static final String TAG = "MainActivity";
 
     public class Position {
@@ -76,6 +90,16 @@ public class MainActivity extends AppCompatActivity
 
     private final static String KEY_REQUESTING_LOCATION_UPDATES = "KEY_REQUESTING_LOCATION_UPDATES";
 
+    private MapFragment mapFragment;
+
+    private GoogleMap googleMap;
+
+    // a collection of pairs (the name of a marker for a spot, the marker object)
+    private HashMap<String, Marker> markerHashMap;
+
+    // marker of the user
+    private Marker userMarker;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,31 +108,20 @@ public class MainActivity extends AppCompatActivity
 
         // initialize position list
         positionList = new ArrayList<>();
-        positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
-        positionList.add(new Position(36.373670, 127.356673, "Armkwan"));
-        positionList.add(new Position(36.372988, 127.359924, "Taewoolkwan"));
-        positionList.add(new Position(36.368425, 127.356792, "Heemangkwan"));
-        positionList.add(new Position(36.370870, 127.355730, "Nanumkwan"));
-        positionList.add(new Position(36.372300, 127.361566, "SportsComplex"));
-        positionList.add(new Position(36.369561, 127.362435, "Library"));
-        positionList.add(new Position(36.368187, 127.363785, "KIBuilding"));
-        positionList.add(new Position(36.368801, 127.365580, "EEBuilding"));
-        positionList.add(new Position(36.365907, 127.363670, "MainGate"));
-        positionList.add(new Position(36.364153, 127.358863, "Backdoor"));
-        positionList.add(new Position(36.371060, 127.366749, "Sejongkwan"));
-        positionList.add(new Position(36.367442, 127.360111, "CoffeeBean"));
+        fetchData();
+        //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
 
         // initialize variables for layout
         btnStart = (Button) findViewById(R.id.btnStart);
         btnStop = (Button) findViewById(R.id.btnStop);
         txtNearestSpot = (TextView) findViewById(R.id.txtNearestSpot);
 
+
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                fetchData();
-                //requestingLocationUpdates = true;
-                //startLocationUpdates();
+                requestingLocationUpdates = true;
+                startLocationUpdates();
             }
         });
         btnStop.setOnClickListener(new View.OnClickListener() {
@@ -130,6 +143,13 @@ public class MainActivity extends AppCompatActivity
 
         updateValuesFromBundle(savedInstanceState);
         createLocationRequest();
+
+        mapFragment =
+                (MapFragment) getFragmentManager().findFragmentById(R.id.map);
+
+        mapFragment.getMapAsync(this);
+
+        markerHashMap = new HashMap<>();
     }
 
     @Override
@@ -148,94 +168,6 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void fetchData()
-    {
-        //check network connection
-        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected())
-        {
-            new DownloadWebpageTask().execute("http://143.248.233.58:8125/request");
-        }
-        else
-        {
-            txtNearestSpot.setText("no network connection available.");
-        }
-    }
-
-    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
-    {
-        @Override
-        protected String doInBackground(String... urls) {
-            try {
-                return downloadUrl(urls[0]);
-            } catch (IOException e) {
-                return "Unable to retrieve web page. URL my be invalid.";
-            }
-        }
-        @Override
-        protected void onPostExecute(String result)
-        {
-            String output = "nothing";
-            try {
-                JSONObject locationListObject = new JSONObject(result);
-                JSONArray locationArray = locationListObject.getJSONArray("LocationList");
-
-
-                for (int i = 0; i< locationArray.length(); i++) {
-                    JSONObject jsonObject = locationArray.getJSONObject(i);
-                    output = jsonObject.toString();
-                    Log.d(TAG, output);
-                }
-            }
-            catch (org.json.JSONException e)
-            {
-                Log.d(TAG, "JSONEXCEPTION BRO.......try harder man");
-            }
-            txtNearestSpot.setText(output);
-        }
-
-        private String downloadUrl(String myurl) throws IOException
-        {
-            InputStream is = null;
-            int len = 2000;
-            try
-            {
-                URL url = new URL(myurl);
-                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-                conn.setReadTimeout(10000);
-                conn.setConnectTimeout(15000);
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-                conn.connect();
-                int response = conn.getResponseCode();
-                Log.d("debugmessage", "The response is: " + response);
-                is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
-                return contentAsString;
-            }
-            finally
-            {
-                if (is != null)
-                {
-                    is.close();
-                }
-            }
-        }
-
-        public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
-        {
-            Reader reader = null;
-            reader = new InputStreamReader(stream, "UTF-8");
-            char[] buffer = new char[len];
-            reader.read(buffer);
-            return new String(buffer);
-        }
-    }
-
-
-
-
     @Override
     protected void onPause()
     {
@@ -250,8 +182,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle savedInstanceState)
-    {
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
         savedInstanceState.putBoolean(KEY_REQUESTING_LOCATION_UPDATES, requestingLocationUpdates);
         super.onSaveInstanceState(savedInstanceState);
     }
@@ -272,6 +203,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onLocationChanged(Location location)
     {
+        Log.d(TAG, "onLocationChanged: (" + location.getLatitude() + "," + location.getLongitude() + ")");
         updateUI(location);
     }
 
@@ -331,6 +263,39 @@ public class MainActivity extends AppCompatActivity
         }
 
         txtNearestSpot.setText(minSpotName);
+
+        // update the position of google map to the user's current position
+        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+
+        // hide all markers except the marker closest to the user
+        for (Marker m: markerHashMap.values())
+        {
+            m.setVisible(false);
+        }
+        markerHashMap.get(minSpotName).setVisible(true);
+
+        // update the user's marker
+        userMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        this.googleMap = googleMap;
+
+        this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(36.369561, 127.362435), 15));
+
+        // create markers for spots
+        for (Position pos: positionList) {
+            Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(pos.latitude, pos.longitude)).title(pos.name));
+            marker.setVisible(false);
+            markerHashMap.put(pos.name, marker);
+        }
+
+        // create a marker for the user
+        userMarker = googleMap.addMarker(new MarkerOptions()
+                .position(new LatLng(36.369561, 127.362435))
+                .title("You")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
     }
 
     private void updateValuesFromBundle(Bundle savedInstanceState)
@@ -343,4 +308,96 @@ public class MainActivity extends AppCompatActivity
             }
         }
     }
+
+    private void fetchData()
+    {
+        //check network connection
+        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            new DownloadWebpageTask().execute("http://143.248.233.58:8125/request");
+        }
+        else
+        {
+            Log.d(TAG, "no network connection available.");
+        }
+    }
+
+    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
+    {
+        @Override
+        protected String doInBackground(String... urls) {
+            try {
+                return downloadUrl(urls[0]);
+            } catch (IOException e) {
+                return "Unable to retrieve web page. URL my be invalid.";
+            }
+        }
+        @Override
+        protected void onPostExecute(String result)
+        {
+            String output = "nothing";
+            try {
+                JSONObject locationListObject = new JSONObject(result);
+                JSONArray locationArray = locationListObject.getJSONArray("LocationList");
+
+
+                for (int i = 0; i< locationArray.length(); i++) {
+                    JSONObject locationObject = locationArray.getJSONObject(i);
+
+                    JSONObject positionObject = locationObject.getJSONObject("position");
+                    double x = positionObject.getDouble("x");
+                    double y = positionObject.getDouble("y");
+
+                    String name = locationObject.getString("name");
+
+                    positionList.add(new Position(x, y, name));
+                    Log.d(TAG, "list length = " + positionList.size());
+                }
+            }
+            catch (org.json.JSONException e)
+            {
+                Log.d(TAG, "JSONEXCEPTION BRO.......try harder man");
+            }
+        }
+
+        private String downloadUrl(String myurl) throws IOException
+        {
+            InputStream is = null;
+            int len = 2000;
+            try
+            {
+                URL url = new URL(myurl);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(15000);
+                conn.setRequestMethod("GET");
+                conn.setDoInput(true);
+                conn.connect();
+                int response = conn.getResponseCode();
+                Log.d("debugmessage", "The response is: " + response);
+                is = conn.getInputStream();
+                String contentAsString = readIt(is, len);
+                return contentAsString;
+            }
+            finally
+            {
+                if (is != null)
+                {
+                    is.close();
+                }
+            }
+        }
+
+        public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
+        {
+            Reader reader = null;
+            reader = new InputStreamReader(stream, "UTF-8");
+            char[] buffer = new char[len];
+            reader.read(buffer);
+            return new String(buffer);
+        }
+    }
+
 }
