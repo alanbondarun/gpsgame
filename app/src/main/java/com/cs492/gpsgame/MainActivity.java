@@ -110,8 +110,7 @@ public class MainActivity extends AppCompatActivity
 
         // initialize position list
         positionList = new ArrayList<>();
-        //fetchData();
-        //requestPlantBomb();
+        fetchData();
 
         //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
 
@@ -124,9 +123,12 @@ public class MainActivity extends AppCompatActivity
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                requestPlantBomb();
-                //requestingLocationUpdates = true;
-                //startLocationUpdates();
+                //for debugging purpose
+                //requestPlantBomb();
+                //fetchData();
+                //
+                requestingLocationUpdates = true;
+                startLocationUpdates();
             }
         });
         btnStop.setOnClickListener(new View.OnClickListener() {
@@ -331,12 +333,16 @@ public class MainActivity extends AppCompatActivity
 
     private void requestBombLocation()
     {
-
-    }
-
-    private void requestDiffuseBomb()
-    {
-
+        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            new DownloadWebpageTask().execute("request");
+        }
+        else
+        {
+            Log.d(TAG, "no network connection available.");
+        }
     }
 
     private void requestPlantBomb()
@@ -345,7 +351,7 @@ public class MainActivity extends AppCompatActivity
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected())
         {
-            new PlantBombTask().execute("http://143.248.233.58:8125/plant");
+            new DownloadWebpageTask().execute("plant");
         }
         else
         {
@@ -353,29 +359,101 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private class PlantBombTask extends AsyncTask<String, Void, String>
+    private void requestDiffuseBomb()
     {
+        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            new DownloadWebpageTask().execute("diffuse");
+        }
+        else
+        {
+            Log.d(TAG, "no network connection available.");
+        }
+
+    }
+
+    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
+    {
+        private String taskname = "";
         @Override
         protected String doInBackground(String... urls) {
+            String urlStart = "http://143.248.233.58:8125/";
+
             try {
-                return plantBomb(urls[0]);
+                if (urls[0] == "request")
+                {
+                    taskname = "request";
+                    return downloadUrl(urlStart + urls[0]);
+                }
+                else if (urls[0] == "plant")
+                {
+                    taskname = "plant";
+                    return plantBomb(urlStart + urls[0]);
+                }
+                return downloadUrl(urls[0]);
             } catch (IOException e) {
-                return "Unable to plant bomb. URL my be invalid.";
+                return "Unable to retrieve web page. URL my be invalid.";
             }
         }
         @Override
         protected void onPostExecute(String result)
         {
             String output = "nothing";
-            Log.d(TAG, "printing the result string...");
-            Log.d(TAG, result);
-            try {
-                JSONObject answerObject = new JSONObject(result);
-                Log.d(TAG, answerObject.toString());
-            }
-            catch (org.json.JSONException e)
+            if (taskname == "plant")
             {
-                Log.d(TAG, "jsonexception in plantbomb postexecute");
+                Log.d(TAG, "onPostExecute with plant request");
+            }
+            else if (taskname == "request") {
+                try {
+                    JSONObject locationListObject = new JSONObject(result);
+                    JSONArray locationArray = locationListObject.getJSONArray("LocationList");
+
+
+                    for (int i = 0; i < locationArray.length(); i++) {
+                        JSONObject locationObject = locationArray.getJSONObject(i);
+
+                        JSONObject positionObject = locationObject.getJSONObject("position");
+                        double x = positionObject.getDouble("x");
+                        double y = positionObject.getDouble("y");
+
+                        String name = locationObject.getString("name");
+
+                        positionList.add(new Position(x, y, name));
+                        Log.d(TAG, "list length = " + positionList.size());
+                    }
+                } catch (org.json.JSONException e) {
+                    Log.d(TAG, "JSONException in onPostExecute " + e);
+                }
+            }
+        }
+
+        private String downloadUrl(String myurl) throws IOException
+        {
+            InputStream is = null;
+            int len = 2000;
+            try
+            {
+                URL url = new URL(myurl);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                conn.setReadTimeout(2000);
+                conn.setConnectTimeout(2000);
+                conn.setRequestMethod("GET");
+                conn.setDoInput(true);
+                conn.connect();
+                int response = conn.getResponseCode();
+                Log.d("debug message", "The response is: " + response);
+                is = conn.getInputStream();
+                String contentAsString = readIt(is, len);
+                return contentAsString;
+            }
+            finally
+            {
+                if (is != null)
+                {
+                    is.close();
+                }
             }
         }
 
@@ -418,92 +496,6 @@ public class MainActivity extends AppCompatActivity
                 return null;
             } finally {
                 if (is != null) {
-                    is.close();
-                }
-            }
-        }
-
-        public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
-        {
-            Reader reader = null;
-            reader = new InputStreamReader(stream, "UTF-8");
-            char[] buffer = new char[len];
-            reader.read(buffer);
-            return new String(buffer);
-        }
-    }
-
-    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
-    {
-        @Override
-        protected String doInBackground(String... urls) {
-            String urlStart = "http://143.248.233.58:8125/";
-
-            try {
-                if (urls[0] == "request")
-                {
-                    return downloadUrl(urlStart + urls[0]);
-                }
-                else if (urls[0] == "plant")
-                {
-                    //return plantBomb(urlStart + urls[0]);
-                }
-                return downloadUrl(urls[0]);
-            } catch (IOException e) {
-                return "Unable to retrieve web page. URL my be invalid.";
-            }
-        }
-        @Override
-        protected void onPostExecute(String result)
-        {
-            String output = "nothing";
-            try {
-                JSONObject locationListObject = new JSONObject(result);
-                JSONArray locationArray = locationListObject.getJSONArray("LocationList");
-
-
-                for (int i = 0; i< locationArray.length(); i++) {
-                    JSONObject locationObject = locationArray.getJSONObject(i);
-
-                    JSONObject positionObject = locationObject.getJSONObject("position");
-                    double x = positionObject.getDouble("x");
-                    double y = positionObject.getDouble("y");
-
-                    String name = locationObject.getString("name");
-
-                    positionList.add(new Position(x, y, name));
-                    Log.d(TAG, "list length = " + positionList.size());
-                }
-            }
-            catch (org.json.JSONException e)
-            {
-                Log.d(TAG, "JSONEXCEPTION BRO.......try harder man");
-            }
-        }
-
-        private String downloadUrl(String myurl) throws IOException
-        {
-            InputStream is = null;
-            int len = 2000;
-            try
-            {
-                URL url = new URL(myurl);
-                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-                conn.setReadTimeout(10000);
-                conn.setConnectTimeout(15000);
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-                conn.connect();
-                int response = conn.getResponseCode();
-                Log.d("debugmessage", "The response is: " + response);
-                is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
-                return contentAsString;
-            }
-            finally
-            {
-                if (is != null)
-                {
                     is.close();
                 }
             }
