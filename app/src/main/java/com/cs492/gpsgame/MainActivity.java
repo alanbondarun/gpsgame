@@ -102,6 +102,12 @@ public class MainActivity extends AppCompatActivity
     // marker of the user
     private Marker userMarker;
 
+    // true if the map is ready
+    private boolean mapIsReady = false;
+
+    // true if the spots are successfully fetched from the server
+    private boolean fetchedData = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -272,14 +278,19 @@ public class MainActivity extends AppCompatActivity
         txtNearestSpot.setText(minSpotName);
 
         // update the position of google map to the user's current position
-        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
+//        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 
         // hide all markers except the marker closest to the user
         for (Marker m: markerHashMap.values())
         {
             m.setVisible(false);
         }
-        markerHashMap.get(minSpotName).setVisible(true);
+        if (markerHashMap.get(minSpotName) != null)
+        {
+            markerHashMap.get(minSpotName).setVisible(true);
+        }
+
+        Log.d(TAG, "minSpotName = " + minSpotName);
 
         // update the user's marker
         userMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
@@ -291,11 +302,10 @@ public class MainActivity extends AppCompatActivity
 
         this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(36.369561, 127.362435), 15));
 
-        // create markers for spots
-        for (Position pos: positionList) {
-            Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(pos.latitude, pos.longitude)).title(pos.name));
-            marker.setVisible(false);
-            markerHashMap.put(pos.name, marker);
+        mapIsReady = true;
+        if (fetchedData)
+        {
+            createMarker();
         }
 
         // create a marker for the user
@@ -303,6 +313,19 @@ public class MainActivity extends AppCompatActivity
                 .position(new LatLng(36.369561, 127.362435))
                 .title("You")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+    }
+
+    private void createMarker()
+    {
+        if (mapIsReady && fetchedData)
+        {
+            // create markers for spots
+            for (Position pos: positionList) {
+                Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(pos.latitude, pos.longitude)).title(pos.name));
+                marker.setVisible(false);
+                markerHashMap.put(pos.name, marker);
+            }
+        }
     }
 
     private void updateValuesFromBundle(Bundle savedInstanceState)
@@ -425,6 +448,12 @@ public class MainActivity extends AppCompatActivity
                     }
                 } catch (org.json.JSONException e) {
                     Log.d(TAG, "JSONException in onPostExecute " + e);
+                }
+
+                fetchedData = true;
+                if (mapIsReady)
+                {
+                    createMarker();
                 }
             }
         }
