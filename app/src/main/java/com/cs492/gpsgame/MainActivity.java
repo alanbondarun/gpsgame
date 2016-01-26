@@ -115,6 +115,7 @@ public class MainActivity extends AppCompatActivity
 
     //user's location
     private Position playerPos = new Position(0,0,"player");
+    private Position minSpot;
 
     // layout objects
     private Button btnBomb = null;
@@ -288,6 +289,7 @@ public class MainActivity extends AppCompatActivity
             {
                 minDistance = pos_dist;
                 minSpotName = pos.name;
+                minSpot = pos;
             }
         }
 
@@ -295,12 +297,10 @@ public class MainActivity extends AppCompatActivity
 //        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 
         // hide all markers except the marker closest to the user
-        for (Marker m: markerHashMap.values())
-        {
+        for (Marker m : markerHashMap.values()) {
             m.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
         }
-        if (markerHashMap.get(minSpotName) != null)
-        {
+        if (markerHashMap.get(minSpotName) != null) {
             markerHashMap.get(minSpotName).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
         }
 
@@ -555,6 +555,7 @@ public class MainActivity extends AppCompatActivity
                 if (is != null) {
                     is.close();
                 }
+                Log.d(TAG, "finally is called....");
             }
             return contentAsString;
         }
@@ -567,13 +568,10 @@ public class MainActivity extends AppCompatActivity
                 URL url = new URL(myurl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
-                //
                 JSONObject coord = new JSONObject();
                 JSONObject position = new JSONObject();
-                position.put("x", playerPos.latitude);
-                position.put("y", playerPos.longitude);
-                //
-
+                position.put("x", minSpot.latitude);
+                position.put("y", minSpot.longitude);
                 coord.put("position", position);
 
                 byte[] postData = coord.toString().getBytes();
