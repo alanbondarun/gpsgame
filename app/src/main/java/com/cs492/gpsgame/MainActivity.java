@@ -56,6 +56,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
@@ -519,6 +520,8 @@ public class MainActivity extends AppCompatActivity
             try {
                 URL url = new URL(myurl);
                 conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(5000);
+                conn.setConnectTimeout(5000);
 
                 JSONObject coord = new JSONObject();
                 JSONObject position = new JSONObject();
@@ -537,16 +540,16 @@ public class MainActivity extends AppCompatActivity
                 conn.setDoOutput(true);
                 conn.setInstanceFollowRedirects(false);
 
-                DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+                OutputStream os = conn.getOutputStream();
+                DataOutputStream wr = new DataOutputStream(os);
                 wr.write(postData);
-
-                Log.d(TAG, "write!");
                 wr.flush();
                 wr.close();
-                Log.d(TAG, "write.");
+                os.close();
+
                 int response = conn.getResponseCode();
                 Log.d(TAG, "write...");
-                Log.d("debugmessage", "The response is: " + response);
+                Log.d(TAG, "The response is: " + response);
                 is = conn.getInputStream();
                 contentAsString = readIt(is, len);
             } catch (org.json.JSONException e) {
@@ -564,9 +567,13 @@ public class MainActivity extends AppCompatActivity
         {
             InputStream is = null;
             int len = 2000;
+            String contentAsString = null;
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(myurl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(5000);
+                conn.setConnectTimeout(5000);
 
                 JSONObject coord = new JSONObject();
                 JSONObject position = new JSONObject();
@@ -584,25 +591,26 @@ public class MainActivity extends AppCompatActivity
                 conn.setDoOutput(true);
                 conn.setInstanceFollowRedirects(false);
 
-                DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+                OutputStream os = conn.getOutputStream();
+                DataOutputStream wr = new DataOutputStream(os);
                 wr.write(postData);
-
                 wr.flush();
                 wr.close();
+                os.close();
 
                 int response = conn.getResponseCode();
-                Log.d("debugmessage", "The response is: " + response);
+                Log.d(TAG, "The response is: " + response);
                 is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
-                return contentAsString;
+                contentAsString = readIt(is, len);
+
             } catch (org.json.JSONException e) {
                 Log.d(TAG, "jsonexception in defusebomb request sending");
-                return null;
             } finally {
                 if (is != null) {
                     is.close();
                 }
             }
+            return contentAsString;
         }
 
         public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
