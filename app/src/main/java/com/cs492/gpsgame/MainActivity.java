@@ -113,6 +113,9 @@ public class MainActivity extends AppCompatActivity
     // user's team
     private String team = "";
 
+    //user's location
+    private Position playerPos = new Position(0,0,"player");
+
     // layout objects
     private Button btnBomb = null;
 
@@ -126,7 +129,7 @@ public class MainActivity extends AppCompatActivity
 
         // initialize position list
         positionList = new ArrayList<>();
-        fetchData();
+        requestBombLocation();
 
         //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
         // prepare layout objects
@@ -147,7 +150,7 @@ public class MainActivity extends AppCompatActivity
             btnBomb.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    requestDiffuseBomb();
+                    requestDefuseBomb();
                 }
             });
         }
@@ -227,6 +230,8 @@ public class MainActivity extends AppCompatActivity
     {
         Log.d(TAG, "onLocationChanged: (" + location.getLatitude() + "," + location.getLongitude() + ")");
         updateUI(location);
+        playerPos.latitude = location.getLatitude();
+        playerPos.longitude = location.getLongitude();
     }
 
     @Override
@@ -422,6 +427,11 @@ public class MainActivity extends AppCompatActivity
                     taskname = "plant";
                     return plantBomb(urlStart + urls[0]);
                 }
+                else if (urls[0] == "defuse")
+                {
+                    taskname = "defuse";
+                    return defuseBomb(urlStart + urls[0]);
+                }
                 return downloadUrl(urls[0]);
             } catch (IOException e) {
                 return "Unable to retrieve web page. URL my be invalid.";
@@ -435,8 +445,12 @@ public class MainActivity extends AppCompatActivity
             {
                 Log.d(TAG, "onPostExecute with plant request");
             }
+            if (taskname == "defuse")
+            {
+                Log.d(TAG, "onPostExecute with defuse request");
+            }
             else if (taskname == "request") {
-                Log.d(TAG, "onPostExecute with plant request");
+                Log.d(TAG, "onPostExecute with bomblocation request");
                 try {
                     JSONObject locationListObject = new JSONObject(result);
                     JSONArray locationArray = locationListObject.getJSONArray("LocationList");
@@ -502,9 +516,12 @@ public class MainActivity extends AppCompatActivity
                 URL url = new URL(myurl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
-
                 JSONObject coord = new JSONObject();
-                coord.put("foo", "bar");
+                JSONObject position = new JSONObject();
+                position.put("x", playerPos.latitude);
+                position.put("y", playerPos.longitude);
+
+                coord.put("position", position);
 
                 byte[] postData = coord.toString().getBytes();
 
@@ -518,10 +535,7 @@ public class MainActivity extends AppCompatActivity
 
                 DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
                 wr.write(postData);
-                //OutputStreamWriter wsr = new OutputStreamWriter(conn.getOutputStream());
-                //wsr.write(coord.toString());
 
-                //conn.connect();
 
                 int response = conn.getResponseCode();
                 Log.d("debugmessage", "The response is: " + response);
@@ -529,7 +543,53 @@ public class MainActivity extends AppCompatActivity
                 String contentAsString = readIt(is, len);
                 return contentAsString;
             } catch (org.json.JSONException e) {
-                Log.d(TAG, "jsonexception in plandbomb request sending");
+                Log.d(TAG, "jsonexception in plantbomb request sending");
+                return null;
+            } finally {
+                if (is != null) {
+                    is.close();
+                }
+            }
+        }
+
+        private String defuseBomb(String myurl) throws IOException
+        {
+            InputStream is = null;
+            int len = 2000;
+            try {
+                URL url = new URL(myurl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+                //
+                JSONObject coord = new JSONObject();
+                JSONObject position = new JSONObject();
+                position.put("x", playerPos.latitude);
+                position.put("y", playerPos.longitude);
+                //
+
+                coord.put("position", position);
+
+                byte[] postData = coord.toString().getBytes();
+
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("charset", "utf-8");
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Length", Integer.toString(postData.length));
+                conn.setDoInput(true);
+                conn.setDoOutput(true);
+                conn.setInstanceFollowRedirects(false);
+
+                DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+                wr.write(postData);
+
+
+                int response = conn.getResponseCode();
+                Log.d("debugmessage", "The response is: " + response);
+                is = conn.getInputStream();
+                String contentAsString = readIt(is, len);
+                return contentAsString;
+            } catch (org.json.JSONException e) {
+                Log.d(TAG, "jsonexception in defusebomb request sending");
                 return null;
             } finally {
                 if (is != null) {
