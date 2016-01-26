@@ -389,13 +389,13 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void requestDiffuseBomb()
+    private void requestDefuseBomb()
     {
         ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected())
         {
-            new DownloadWebpageTask().execute("diffuse");
+            new DownloadWebpageTask().execute("defuse");
         }
         else
         {
@@ -436,6 +436,7 @@ public class MainActivity extends AppCompatActivity
                 Log.d(TAG, "onPostExecute with plant request");
             }
             else if (taskname == "request") {
+                Log.d(TAG, "onPostExecute with plant request");
                 try {
                     JSONObject locationListObject = new JSONObject(result);
                     JSONArray locationArray = locationListObject.getJSONArray("LocationList");
