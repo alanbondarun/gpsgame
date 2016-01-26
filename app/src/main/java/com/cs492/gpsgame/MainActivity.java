@@ -65,6 +65,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity
@@ -121,6 +123,9 @@ public class MainActivity extends AppCompatActivity
     // layout objects
     private Button btnBomb = null;
 
+    private final long REFRESH_PERIOD_MSEC = 10000;
+    private Timer refreshTimer;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(TAG, "onCreate");
@@ -176,6 +181,14 @@ public class MainActivity extends AppCompatActivity
         mapFragment.getMapAsync(this);
 
         markerHashMap = new HashMap<>();
+
+        refreshTimer = new Timer();
+        refreshTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                requestBombLocation();
+            }
+        }, 0, REFRESH_PERIOD_MSEC);
     }
 
     @Override
@@ -413,6 +426,16 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    private void clearPositions()
+    {
+        positionList.clear();
+        for (Marker m: markerHashMap.values())
+        {
+            m.remove();
+        }
+        markerHashMap.clear();
+    }
+
     private class DownloadWebpageTask extends AsyncTask<String, Void, String>
     {
         private String taskname = "";
@@ -448,13 +471,40 @@ public class MainActivity extends AppCompatActivity
             if (taskname == "plant")
             {
                 Log.d(TAG, "onPostExecute with plant request");
+                Position newPos = new Position(playerPos.latitude, playerPos.longitude, "new bomb");
+                positionList.add(newPos);
+                if (mapIsReady)
+                {
+                    Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(newPos.latitude, newPos.longitude)).title(newPos.name));
+                    marker.setVisible(true);
+                    markerHashMap.put(newPos.name, marker);
+                }
             }
             if (taskname == "defuse")
             {
                 Log.d(TAG, "onPostExecute with defuse request");
+                if (mapIsReady)
+                {
+                    Position pos = null;
+                    for (Position p: positionList)
+                    {
+                        if (minSpot.latitude == p.latitude && minSpot.longitude == p.longitude)
+                        {
+                            pos = p;
+                        }
+                    }
+                    if (pos != null)
+                    {
+                        markerHashMap.get(pos.name).remove();
+                        markerHashMap.remove(pos.name);
+                    }
+                }
+                positionList.remove(minSpot);
             }
             else if (taskname == "request") {
                 Log.d(TAG, "onPostExecute with bomblocation request");
+                clearPositions();
+
                 try {
                     Log.d(TAG, "result = " + result);
                     JSONArray locationArray = new JSONArray(result);
