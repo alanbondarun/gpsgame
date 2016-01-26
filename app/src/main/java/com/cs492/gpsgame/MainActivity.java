@@ -45,10 +45,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.DataOutputStream;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
@@ -108,7 +110,9 @@ public class MainActivity extends AppCompatActivity
 
         // initialize position list
         positionList = new ArrayList<>();
-        fetchData();
+        //fetchData();
+        //requestPlantBomb();
+
         //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
 
         // initialize variables for layout
@@ -120,8 +124,9 @@ public class MainActivity extends AppCompatActivity
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                requestingLocationUpdates = true;
-                startLocationUpdates();
+                requestPlantBomb();
+                //requestingLocationUpdates = true;
+                //startLocationUpdates();
             }
         });
         btnStop.setOnClickListener(new View.OnClickListener() {
@@ -316,7 +321,7 @@ public class MainActivity extends AppCompatActivity
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected())
         {
-            new DownloadWebpageTask().execute("http://143.248.233.58:8125/request");
+            new DownloadWebpageTask().execute("request");
         }
         else
         {
@@ -324,11 +329,125 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
+    private void requestBombLocation()
+    {
+
+    }
+
+    private void requestDiffuseBomb()
+    {
+
+    }
+
+    private void requestPlantBomb()
+    {
+        ConnectivityManager connMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            new PlantBombTask().execute("http://143.248.233.58:8125/plant");
+        }
+        else
+        {
+            Log.d(TAG, "no network connection available.");
+        }
+    }
+
+    private class PlantBombTask extends AsyncTask<String, Void, String>
     {
         @Override
         protected String doInBackground(String... urls) {
             try {
+                return plantBomb(urls[0]);
+            } catch (IOException e) {
+                return "Unable to plant bomb. URL my be invalid.";
+            }
+        }
+        @Override
+        protected void onPostExecute(String result)
+        {
+            String output = "nothing";
+            Log.d(TAG, "printing the result string...");
+            Log.d(TAG, result);
+            try {
+                JSONObject answerObject = new JSONObject(result);
+                Log.d(TAG, answerObject.toString());
+            }
+            catch (org.json.JSONException e)
+            {
+                Log.d(TAG, "jsonexception in plantbomb postexecute");
+            }
+        }
+
+        private String plantBomb(String myurl) throws IOException
+        {
+            InputStream is = null;
+            int len = 2000;
+            try {
+                URL url = new URL(myurl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+
+                JSONObject coord = new JSONObject();
+                coord.put("foo", "bar");
+
+                byte[] postData = coord.toString().getBytes();
+
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("charset", "utf-8");
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Length", Integer.toString(postData.length));
+                conn.setDoInput(true);
+                conn.setDoOutput(true);
+                conn.setInstanceFollowRedirects(false);
+
+                DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
+                wr.write(postData);
+                //OutputStreamWriter wsr = new OutputStreamWriter(conn.getOutputStream());
+                //wsr.write(coord.toString());
+
+                //conn.connect();
+
+                int response = conn.getResponseCode();
+                Log.d("debugmessage", "The response is: " + response);
+                is = conn.getInputStream();
+                String contentAsString = readIt(is, len);
+                return contentAsString;
+            } catch (org.json.JSONException e) {
+                Log.d(TAG, "jsonexception in plandbomb request sending");
+                return null;
+            } finally {
+                if (is != null) {
+                    is.close();
+                }
+            }
+        }
+
+        public String readIt(InputStream stream, int len)throws IOException, UnsupportedEncodingException
+        {
+            Reader reader = null;
+            reader = new InputStreamReader(stream, "UTF-8");
+            char[] buffer = new char[len];
+            reader.read(buffer);
+            return new String(buffer);
+        }
+    }
+
+    private class DownloadWebpageTask extends AsyncTask<String, Void, String>
+    {
+        @Override
+        protected String doInBackground(String... urls) {
+            String urlStart = "http://143.248.233.58:8125/";
+
+            try {
+                if (urls[0] == "request")
+                {
+                    return downloadUrl(urlStart + urls[0]);
+                }
+                else if (urls[0] == "plant")
+                {
+                    //return plantBomb(urlStart + urls[0]);
+                }
                 return downloadUrl(urls[0]);
             } catch (IOException e) {
                 return "Unable to retrieve web page. URL my be invalid.";
