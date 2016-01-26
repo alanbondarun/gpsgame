@@ -19,11 +19,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.JsonReader;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -149,6 +151,7 @@ public class MainActivity extends AppCompatActivity
             btnBomb.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+
                     requestPlantBomb();
                 }
             });
@@ -159,6 +162,7 @@ public class MainActivity extends AppCompatActivity
             btnBomb.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+
                     requestDefuseBomb();
                 }
             });
@@ -470,6 +474,9 @@ public class MainActivity extends AppCompatActivity
             String output = "nothing";
             if (taskname == "plant")
             {
+                Toast toast = Toast.makeText(getApplicationContext(), "Bomb has been planted!", Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
                 Log.d(TAG, "onPostExecute with plant request");
                 Position newPos = new Position(playerPos.latitude, playerPos.longitude, "new bomb");
                 positionList.add(newPos);
@@ -482,6 +489,9 @@ public class MainActivity extends AppCompatActivity
             }
             if (taskname == "defuse")
             {
+                Toast toast = Toast.makeText(getApplicationContext(), "Bomb has been defused!", Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
                 Log.d(TAG, "onPostExecute with defuse request");
                 if (mapIsReady)
                 {
