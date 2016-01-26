@@ -81,8 +81,6 @@ public class MainActivity extends AppCompatActivity
 
     private ArrayList<Position> positionList;
 
-    private Button btnStart;
-    private Button btnStop;
     private TextView txtNearestSpot;
 
     private GoogleApiClient googleApiClient;
@@ -121,30 +119,7 @@ public class MainActivity extends AppCompatActivity
         //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
 
         // initialize variables for layout
-        btnStart = (Button) findViewById(R.id.btnStart);
-        btnStop = (Button) findViewById(R.id.btnStop);
         txtNearestSpot = (TextView) findViewById(R.id.txtNearestSpot);
-
-
-        btnStart.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                //for debugging purpose
-                //requestPlantBomb();
-                //fetchData();
-                //
-                requestingLocationUpdates = true;
-                startLocationUpdates();
-            }
-        });
-        btnStop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                requestingLocationUpdates = false;
-                stopLocationUpdates();
-                txtNearestSpot.setText("");
-            }
-        });
 
         if (googleApiClient == null) {
             googleApiClient = new GoogleApiClient.Builder(this)
@@ -190,6 +165,10 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onStop() {
+        requestingLocationUpdates = false;
+        stopLocationUpdates();
+        txtNearestSpot.setText("");
+
         googleApiClient.disconnect();
         super.onStop();
     }
@@ -203,7 +182,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onConnected(Bundle connectionHint) {
         Log.d(TAG, "onConnected");
-        if (requestingLocationUpdates) {
+        if (!requestingLocationUpdates) {
             startLocationUpdates();
         }
     }

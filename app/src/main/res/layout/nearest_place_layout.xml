@@ -31,21 +31,8 @@
         android:weightSum="2"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
+        android:orientation="horizontal"
         android:id="@+id/btnsContainer">
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Start"
-            android:id="@+id/btnStart"
-            android:layout_weight="1" />
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stop"
-            android:id="@+id/btnStop"
-            android:layout_weight="1" />
     </LinearLayout>
 
 </RelativeLayout>
