@@ -121,6 +121,8 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d(TAG, "onCreate");
+
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.nearest_place_layout);
@@ -295,11 +297,11 @@ public class MainActivity extends AppCompatActivity
         // hide all markers except the marker closest to the user
         for (Marker m: markerHashMap.values())
         {
-            m.setVisible(false);
+            m.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
         }
         if (markerHashMap.get(minSpotName) != null)
         {
-            markerHashMap.get(minSpotName).setVisible(true);
+            markerHashMap.get(minSpotName).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
         }
 
         Log.d(TAG, "minSpotName = " + minSpotName);
@@ -334,7 +336,7 @@ public class MainActivity extends AppCompatActivity
             // create markers for spots
             for (Position pos: positionList) {
                 Marker marker = googleMap.addMarker(new MarkerOptions().position(new LatLng(pos.latitude, pos.longitude)).title(pos.name));
-                marker.setVisible(false);
+                marker.setVisible(true);
                 markerHashMap.put(pos.name, marker);
             }
         }
@@ -372,6 +374,7 @@ public class MainActivity extends AppCompatActivity
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected())
         {
+            Log.d(TAG, "request!");
             new DownloadWebpageTask().execute("request");
         }
         else
@@ -452,24 +455,21 @@ public class MainActivity extends AppCompatActivity
             else if (taskname == "request") {
                 Log.d(TAG, "onPostExecute with bomblocation request");
                 try {
-                    JSONObject locationListObject = new JSONObject(result);
-                    JSONArray locationArray = locationListObject.getJSONArray("LocationList");
-
+                    Log.d(TAG, "result = " + result);
+                    JSONArray locationArray = new JSONArray(result);
 
                     for (int i = 0; i < locationArray.length(); i++) {
                         JSONObject locationObject = locationArray.getJSONObject(i);
 
-                        JSONObject positionObject = locationObject.getJSONObject("position");
-                        double x = positionObject.getDouble("x");
-                        double y = positionObject.getDouble("y");
+                        double x = locationObject.getDouble("x");
+                        double y = locationObject.getDouble("y");
 
-                        String name = locationObject.getString("name");
-
-                        positionList.add(new Position(x, y, name));
+                        positionList.add(new Position(x, y, "bomb" + (i+1)));
                         Log.d(TAG, "list length = " + positionList.size());
                     }
                 } catch (org.json.JSONException e) {
                     Log.d(TAG, "JSONException in onPostExecute " + e);
+                    e.printStackTrace();
                 }
 
                 fetchedData = true;
@@ -484,20 +484,21 @@ public class MainActivity extends AppCompatActivity
         {
             InputStream is = null;
             int len = 2000;
+            String contentAsString = null;
             try
             {
+                Log.d(TAG, "downloadUrl");
                 URL url = new URL(myurl);
                 HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-                conn.setReadTimeout(2000);
-                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(5000);
+                conn.setConnectTimeout(5000);
                 conn.setRequestMethod("GET");
                 conn.setDoInput(true);
                 conn.connect();
                 int response = conn.getResponseCode();
                 Log.d("debug message", "The response is: " + response);
                 is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
-                return contentAsString;
+                contentAsString = readIt(is, len);
             }
             finally
             {
@@ -506,15 +507,18 @@ public class MainActivity extends AppCompatActivity
                     is.close();
                 }
             }
+            return contentAsString;
         }
 
         private String plantBomb(String myurl) throws IOException
         {
             InputStream is = null;
             int len = 2000;
+            String contentAsString = null;
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(myurl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
 
                 JSONObject coord = new JSONObject();
                 JSONObject position = new JSONObject();
@@ -536,20 +540,23 @@ public class MainActivity extends AppCompatActivity
                 DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
                 wr.write(postData);
 
-
+                Log.d(TAG, "write!");
+                wr.flush();
+                wr.close();
+                Log.d(TAG, "write.");
                 int response = conn.getResponseCode();
+                Log.d(TAG, "write...");
                 Log.d("debugmessage", "The response is: " + response);
                 is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
-                return contentAsString;
+                contentAsString = readIt(is, len);
             } catch (org.json.JSONException e) {
                 Log.d(TAG, "jsonexception in plantbomb request sending");
-                return null;
             } finally {
                 if (is != null) {
                     is.close();
                 }
             }
+            return contentAsString;
         }
 
         private String defuseBomb(String myurl) throws IOException
@@ -582,6 +589,8 @@ public class MainActivity extends AppCompatActivity
                 DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
                 wr.write(postData);
 
+                wr.flush();
+                wr.close();
 
                 int response = conn.getResponseCode();
                 Log.d("debugmessage", "The response is: " + response);
