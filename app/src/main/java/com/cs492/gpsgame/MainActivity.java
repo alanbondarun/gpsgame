@@ -4,7 +4,11 @@ import android.Manifest;
 import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -17,6 +21,8 @@ import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -81,8 +87,6 @@ public class MainActivity extends AppCompatActivity
 
     private ArrayList<Position> positionList;
 
-    private TextView txtNearestSpot;
-
     private GoogleApiClient googleApiClient;
 
     private LocationRequest locationRequest = null;
@@ -106,8 +110,11 @@ public class MainActivity extends AppCompatActivity
     // true if the spots are successfully fetched from the server
     private boolean fetchedData = false;
 
-    //user's team
-    private String team = "";;
+    // user's team
+    private String team = "";
+
+    // layout objects
+    private Button btnBomb = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,9 +129,28 @@ public class MainActivity extends AppCompatActivity
         fetchData();
 
         //positionList.add(new Position(36.374128, 127.365497, "CSBuilding"));
-
-        // initialize variables for layout
-        txtNearestSpot = (TextView) findViewById(R.id.txtNearestSpot);
+        // prepare layout objects
+        btnBomb = (Button) findViewById(R.id.btnBomb);
+        if (team.equals("terrorist"))
+        {
+            btnBomb.setText("Plant a bomb");
+            btnBomb.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    requestPlantBomb();
+                }
+            });
+        }
+        else if (team.equals("counter"))
+        {
+            btnBomb.setText("Defuse the bomb");
+            btnBomb.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    requestDiffuseBomb();
+                }
+            });
+        }
 
         if (googleApiClient == null) {
             googleApiClient = new GoogleApiClient.Builder(this)
@@ -172,7 +198,6 @@ public class MainActivity extends AppCompatActivity
     protected void onStop() {
         requestingLocationUpdates = false;
         stopLocationUpdates();
-        txtNearestSpot.setText("");
 
         googleApiClient.disconnect();
         super.onStop();
@@ -258,8 +283,6 @@ public class MainActivity extends AppCompatActivity
                 minSpotName = pos.name;
             }
         }
-
-        txtNearestSpot.setText(minSpotName);
 
         // update the position of google map to the user's current position
 //        googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
