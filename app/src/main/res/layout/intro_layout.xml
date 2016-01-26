@@ -9,4 +9,18 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.cs492.gpsgame.IntroActivity">
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Join the Terrorists!"
+        android:id="@+id/btnTerrorist" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Join the Counter-Terrorists!"
+        android:id="@+id/btnCT"
+        android:layout_below="@+id/btnTerrorist"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
 </RelativeLayout>

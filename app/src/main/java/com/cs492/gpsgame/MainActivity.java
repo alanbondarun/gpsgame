@@ -108,11 +108,16 @@ public class MainActivity extends AppCompatActivity
     // true if the spots are successfully fetched from the server
     private boolean fetchedData = false;
 
+    //user's team
+    private String team = "";;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.nearest_place_layout);
+
+        team = getIntent().getStringExtra("team");
 
         // initialize position list
         positionList = new ArrayList<>();
